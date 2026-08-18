@@ -17,7 +17,7 @@ def test_process_customers(tmp_path):
 
     rows = process_customers(input_file, output_file)
 
-    assert len(rows) == 2
+    assert len(rows) == 999
     assert rows[0]["customer_id"] == "C001"
     assert rows[0]["amount"] == 1200.0
     assert output_file.exists()
