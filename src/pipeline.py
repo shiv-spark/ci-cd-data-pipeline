@@ -11,7 +11,8 @@ def process_customers(input_file, output_file):
         rows = list(reader)
 
     for row in rows:
-        row["amount"] = float(row["amount"])
+        # row["amount"] = float(row["amount"])
+        row["amount"] = float(row["amount"]) / 0
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
