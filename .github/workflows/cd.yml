@@ -43,7 +43,7 @@ on:
       - completed
 
 jobs:
-  deploy:
+  deploy-dev:
     if: >
       github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.head_branch == 'main'
@@ -57,17 +57,24 @@ jobs:
 
       - name: Build Docker image
         run: |
-          docker build -t customer-data-pipeline:${{ github.event.workflow_run.head_sha }} .
+          docker build -t customer-data-pipeline:dev .
 
-      - name: Run Docker container
+      - name: Deploy to DEV
+        working-directory: deploy/dev
         run: |
-          docker run --name customer-pipeline customer-data-pipeline:${{ github.event.workflow_run.head_sha }}
+          mkdir -p output
+          docker compose run --rm customer-pipeline
 
-      - name: Verify output
+      - name: DEV health check
+        working-directory: deploy/dev
         run: |
-          docker cp customer-pipeline:/app/output/customers_processed.csv ./customers_processed.csv
-          test -f ./customers_processed.csv
+          test -f output/customers_processed.csv
 
-      - name: Deployment successful
+      - name: Show DEV output
+        working-directory: deploy/dev
         run: |
-          echo "Dockerized customer pipeline deployed successfully!"
+          cat output/customers_processed.csv
+
+      - name: DEV deployment successful
+        run: |
+          echo "Customer pipeline successfully deployed to DEV!"
