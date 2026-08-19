@@ -34,34 +34,39 @@
 #       - name: Deployment successful
 #         run: |
 #           echo "Customer pipeline deployed successfully!"
-
 name: Python CD
 
 on:
-  push:
-    branches:
-      - main
+  workflow_run:
+    workflows: ["Python CI"]
+    types:
+      - completed
 
 jobs:
   deploy:
+    if: >
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main'
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout successful CI commit
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
 
       - name: Build Docker image
         run: |
-          docker build -t customer-data-pipeline:latest .
+          docker build -t customer-data-pipeline:${{ github.event.workflow_run.head_sha }} .
 
       - name: Run Docker container
         run: |
-          docker run --name customer-pipeline customer-data-pipeline:latest
+          docker run --name customer-pipeline customer-data-pipeline:${{ github.event.workflow_run.head_sha }}
 
       - name: Verify output
         run: |
           docker cp customer-pipeline:/app/output/customers_processed.csv ./customers_processed.csv
-          test -f customers_processed.csv
+          test -f ./customers_processed.csv
 
       - name: Deployment successful
         run: |
