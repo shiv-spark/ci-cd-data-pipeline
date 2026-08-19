@@ -1,0 +1,9 @@
+
+services:
+  customer-pipeline:
+    image: customer-data-pipeline:dev
+    container_name: customer-pipeline-dev
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT}
+    volumes:
+      - ./output:/app/output

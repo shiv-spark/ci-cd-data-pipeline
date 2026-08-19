@@ -1,8 +1,11 @@
+import os
 import csv
 from pathlib import Path
 
 
 def process_customers(input_file, output_file):
+    environment = os.getenv("ENVIRONMENT", "local")
+    print(f"Running pipeline in: {environment}")
     input_path = Path(input_file)
     output_path = Path(output_file)
 
@@ -12,6 +15,7 @@ def process_customers(input_file, output_file):
 
     for row in rows:
         row["amount"] = float(row["amount"])
+        # row["amount"] = float(row["amount"]) / 0
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
 

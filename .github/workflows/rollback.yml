@@ -1,0 +1,65 @@
+name: Production Rollback
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Docker image SHA to rollback to"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  packages: read
+
+env:
+  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/customer-data-pipeline
+
+jobs:
+  rollback:
+    runs-on: ubuntu-latest
+
+    environment:
+      name: PROD
+
+    steps:
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull rollback image
+        run: |
+          docker pull $IMAGE_NAME:${{ inputs.image_tag }}
+
+      - name: Run rollback container
+        env:
+          ENVIRONMENT: PROD
+        run: |
+          docker run \
+            --name customer-pipeline-rollback \
+            -e ENVIRONMENT="$ENVIRONMENT" \
+            $IMAGE_NAME:${{ inputs.image_tag }}
+
+      - name: Verify rollback
+        run: |
+          docker cp \
+            customer-pipeline-rollback:/app/output/customers_processed.csv \
+            ./customers_processed.csv
+
+          test -f ./customers_processed.csv
+
+      - name: Show rollback output
+        run: |
+          cat ./customers_processed.csv
+
+      - name: Rollback successful
+        run: |
+          echo "Production rollback completed successfully!"
+
+      - name: Cleanup
+        if: always()
+        run: |
+          docker rm -f customer-pipeline-rollback || true
