@@ -61,6 +61,8 @@ jobs:
 
       - name: Deploy to DEV
         working-directory: deploy/dev
+        env:
+          ENVIRONMENT: ${{ secrets.DEPLOYMENT_ENV }}
         run: |
           mkdir -p output
           docker compose run --rm customer-pipeline
