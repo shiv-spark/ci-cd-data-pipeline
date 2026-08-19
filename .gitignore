@@ -1,7 +1,8 @@
 __pycache__/
 *.pyc
-my_env/
+.pytest_cache/
 .venv/
-venv/
+my_env/
 .env
 output/
+deploy/dev/output/
