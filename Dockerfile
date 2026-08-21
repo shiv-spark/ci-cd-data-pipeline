@@ -22,12 +22,11 @@
 # COPY data/ ./data/
 
 # CMD ["python", "src/pipeline.py"]
-
 FROM python:3.11-slim
 
 WORKDIR /app
 
-# Update OS packages
+# Update Debian packages to receive security fixes
 RUN apt-get update \
     && apt-get upgrade -y \
     && rm -rf /var/lib/apt/lists/*
@@ -37,7 +36,7 @@ COPY requirements.txt .
 # Install application dependencies
 RUN python -m pip install --no-cache-dir -r requirements.txt
 
-# Upgrade vulnerable Python packages
+# Upgrade Python packaging/security-sensitive packages
 RUN python -m pip install --no-cache-dir --upgrade \
     pip \
     setuptools \
