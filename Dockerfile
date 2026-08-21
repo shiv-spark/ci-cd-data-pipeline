@@ -25,26 +25,35 @@
 
 
 
-
-FROM python:3.11-slim
+# ---- Builder stage ----
+FROM python:3.11-slim AS builder
 
 WORKDIR /app
 
-# Update OS packages
 RUN apt-get update \
     && apt-get upgrade -y \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
 
-# Install dependencies and upgrade vulnerable packages
-RUN pip install --no-cache-dir -r requirements.txt \
-    && pip install --no-cache-dir --upgrade \
-       pip \
-       setuptools \
-       wheel \
-       jaraco.context \
-       msgpack
+# Install into a dedicated prefix so we can copy just this tree later
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel jaraco.context msgpack \
+    && pip install --no-cache-dir --prefix=/install -r requirements.txt \
+    && pip install --no-cache-dir --prefix=/install --upgrade \
+       setuptools wheel jaraco.context msgpack
+
+
+# ---- Runtime stage ----
+FROM python:3.11-slim
+
+WORKDIR /app
+
+RUN apt-get update \
+    && apt-get upgrade -y \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy only the installed packages, not pip itself
+COPY --from=builder /install /usr/local
 
 COPY src/ ./src/
 COPY data/ ./data/
