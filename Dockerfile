@@ -36,10 +36,8 @@ RUN apt-get update \
 
 COPY requirements.txt .
 
-# Install into a dedicated prefix so we can copy just this tree later
-RUN pip install --no-cache-dir --upgrade pip setuptools wheel jaraco.context msgpack \
-    && pip install --no-cache-dir --prefix=/install -r requirements.txt \
-    && pip install --no-cache-dir --prefix=/install --upgrade \
+RUN pip install --no-cache-dir --prefix=/install -r requirements.txt \
+    && pip install --no-cache-dir --prefix=/install --upgrade --ignore-installed \
        setuptools wheel jaraco.context msgpack
 
 
@@ -52,7 +50,6 @@ RUN apt-get update \
     && apt-get upgrade -y \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy only the installed packages, not pip itself
 COPY --from=builder /install /usr/local
 
 COPY src/ ./src/
