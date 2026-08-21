@@ -83,6 +83,174 @@
 
 
 
+# name: Python CD
+
+# on:
+#   workflow_run:
+#     workflows: ["Python CI"]
+#     types:
+#       - completed
+
+# permissions:
+#   contents: read
+#   packages: write
+
+# env:
+#   IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/customer-data-pipeline
+
+# jobs:
+
+#   build:
+#     if: >
+#       github.event.workflow_run.conclusion == 'success' &&
+#       github.event.workflow_run.head_branch == 'main'
+
+#     runs-on: ubuntu-latest
+
+#     outputs:
+#       image_tag: ${{ steps.meta.outputs.image_tag }}
+
+#     steps:
+#       - name: Checkout successful CI commit
+#         uses: actions/checkout@v4
+#         with:
+#           ref: ${{ github.event.workflow_run.head_sha }}
+
+#       - name: Set image tag
+#         id: meta
+#         run: |
+#           echo "image_tag=${{ github.event.workflow_run.head_sha }}" >> "$GITHUB_OUTPUT"
+
+#       - name: Login to GHCR
+#         uses: docker/login-action@v3
+#         with:
+#           registry: ghcr.io
+#           username: ${{ github.actor }}
+#           password: ${{ secrets.GITHUB_TOKEN }}
+
+#       - name: Build Docker image
+#         run: |
+#           docker build \
+#             -t $IMAGE_NAME:${{ steps.meta.outputs.image_tag }} \
+#             .
+
+#       - name: Scan Docker image for vulnerabilities
+#         uses: aquasecurity/trivy-action@v0.36.0
+#         with:
+#           image-ref: customer-data-pipeline:${{ github.sha }}
+#           format: table
+#           exit-code: 1
+#           ignore-unfixed: true
+#           vuln-type: os,library
+#           severity: CRITICAL,HIGH
+
+#       - name: Push Docker image
+#         run: |
+#           docker push $IMAGE_NAME:${{ steps.meta.outputs.image_tag }}
+
+
+#   deploy-dev:
+
+#     needs: build
+
+#     runs-on: ubuntu-latest
+
+#     environment:
+#       name: DEV
+
+#     steps:
+
+#       - name: Login to GHCR
+#         uses: docker/login-action@v3
+#         with:
+#           registry: ghcr.io
+#           username: ${{ github.actor }}
+#           password: ${{ secrets.GITHUB_TOKEN }}
+
+#       - name: Pull DEV image
+#         run: |
+#           docker pull $IMAGE_NAME:${{ needs.build.outputs.image_tag }}
+
+#       - name: Run DEV container
+#         env:
+#           ENVIRONMENT: ${{ secrets.DEPLOYMENT_ENV }}
+#         run: |
+#           docker run \
+#             --name customer-pipeline-dev \
+#             -e ENVIRONMENT="$ENVIRONMENT" \
+#             $IMAGE_NAME:${{ needs.build.outputs.image_tag }}
+
+#       - name: DEV health check
+#         run: |
+#           docker cp \
+#             customer-pipeline-dev:/app/output/customers_processed.csv \
+#             ./customers_processed.csv
+
+#           test -f ./customers_processed.csv
+
+#       - name: Show DEV output
+#         run: |
+#           cat ./customers_processed.csv
+
+#       - name: Remove DEV container
+#         if: always()
+#         run: |
+#           docker rm -f customer-pipeline-dev || true
+
+
+#   deploy-prod:
+
+#     needs: [build, deploy-dev]
+
+#     runs-on: ubuntu-latest
+
+#     environment:
+#       name: PROD
+
+#     steps:
+
+#       - name: Login to GHCR
+#         uses: docker/login-action@v3
+#         with:
+#           registry: ghcr.io
+#           username: ${{ github.actor }}
+#           password: ${{ secrets.GITHUB_TOKEN }}
+
+#       - name: Pull same tested image
+#         run: |
+#           docker pull $IMAGE_NAME:${{ needs.build.outputs.image_tag }}
+
+#       - name: Run PROD container
+#         env:
+#           ENVIRONMENT: PROD
+#         run: |
+#           docker run \
+#             --name customer-pipeline-prod \
+#             -e ENVIRONMENT="$ENVIRONMENT" \
+#             $IMAGE_NAME:${{ needs.build.outputs.image_tag }}
+
+#       - name: PROD health check
+#         run: |
+#           docker cp \
+#             customer-pipeline-prod:/app/output/customers_processed.csv \
+#             ./customers_processed.csv
+
+#           test -f ./customers_processed.csv
+
+#       - name: Show PROD output
+#         run: |
+#           cat ./customers_processed.csv
+
+#       - name: Production deployment successful
+#         run: |
+#           echo "Customer pipeline successfully deployed to PROD!"
+
+#       - name: Remove PROD container
+#         if: always()
+#         run: |
+#           docker rm -f customer-pipeline-prod || true
+
+
 name: Python CD
 
 on:
@@ -133,6 +301,16 @@ jobs:
           docker build \
             -t $IMAGE_NAME:${{ steps.meta.outputs.image_tag }} \
             .
+
+      - name: Scan Docker image for vulnerabilities
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.image_tag }}
+          format: table
+          exit-code: 1
+          ignore-unfixed: true
+          vuln-type: os,library
+          severity: CRITICAL,HIGH
 
       - name: Push Docker image
         run: |
